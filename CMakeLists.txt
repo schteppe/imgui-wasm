@@ -13,5 +13,5 @@ add_executable(index
     src/main.cpp
 )
 
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/src/shell.html
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/src/index.html
      DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
