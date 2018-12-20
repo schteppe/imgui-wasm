@@ -374,23 +374,16 @@ int FunImGui::keyboardCallback(int eventType, const EmscriptenKeyboardEvent* key
     );
 #endif // DEBUGPRINT_KEYBOARD
 
-
     switch(eventType)
     {
     case EMSCRIPTEN_EVENT_KEYDOWN:
-        {
-            io.KeysDown[keyEvent->which] = 1;
-        }
+        io.KeysDown[keyEvent->which] = 1;
         break;
     case EMSCRIPTEN_EVENT_KEYUP:
-        {
-            io.KeysDown[keyEvent->which] = 0;
-        }
+        io.KeysDown[keyEvent->which] = 0;
         break;
     case EMSCRIPTEN_EVENT_KEYPRESS:
-        {
-            printf("%s was pressed\n", keyEvent->key);
-        }
+        printf("%s was pressed\n", keyEvent->key);
         break;
     }
     return handled;

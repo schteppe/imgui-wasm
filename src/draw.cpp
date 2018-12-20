@@ -57,6 +57,7 @@ void Draw::shaderErrors(int shader)
 
 void Draw::clear()
 {
-    glClearColor(0.1f,0.1f,0.1f,1);
+    glDisable(GL_SCISSOR_TEST);
+    glClearColor(0.5f,0.5f,0.5f,1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 }
