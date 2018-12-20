@@ -8,7 +8,6 @@ add_executable(index
     external/imgui.cpp
     external/imgui_demo.cpp
     external/imgui_draw.cpp
-    src/em.cpp
     src/draw.cpp
     src/funimgui.cpp
     src/main.cpp

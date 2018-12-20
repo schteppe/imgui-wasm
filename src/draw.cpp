@@ -54,6 +54,7 @@ void Draw::shaderErrors(int shader)
         }
     }
 }
+
 void Draw::clear()
 {
     glClearColor(0.1f,0.1f,0.1f,1);
