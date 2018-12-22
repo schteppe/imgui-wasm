@@ -1,180 +1,123 @@
-#include "draw.h"
-#include "funimgui.h"
-#include <stdio.h>
+// ImGui - standalone example application for SDL2 + OpenGL ES 2 + Emscripten
+
 #include <imgui.h>
-#include <emscripten/emscripten.h>
-#include <emscripten/html5.h>
-#include <GLES3/gl3.h>
-#include <iostream>
-#include <math.h>
+#include "imgui_impl_sdl.h"
+#include <stdio.h>
+#include <SDL.h>
+#include <SDL_opengl.h>
 
-int shaderProgram;
-unsigned int VBO, VAO;
-float vertices[] = {
-    -0.5f, -0.5f, 0.0f, // left  
-    0.5f, -0.5f, 0.0f, // right 
-    0.0f,  0.5f, 0.0f  // top   
-}; 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
-void initTriangle(){
+bool g_done = false;
+SDL_Window* g_window;
+bool g_show_test_window = true;
+bool g_show_another_window = false;
+ImVec4 g_clear_color = ImColor(114, 144, 154);
 
-    const char *vertexShaderSource = ""
-        "attribute vec3 aPos;\n"
-        "void main()\n"
-        "{\n"
-        "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-        "}\0";
-    const char *fragmentShaderSource = "\n"
-        "void main()\n"
-        "{\n"
-        "   gl_FragColor = vec4(1.0, 0.5, 0.2, 1.0);\n"
-        "}\n\0";
 
-    // build and compile our shader program
-    // ------------------------------------
-    // vertex shader
-    int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-    glCompileShader(vertexShader);
-    // check for shader compile errors
-    int success;
-    char infoLog[512];
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-    if (!success)
+void main_loop()
+{
+    SDL_Event event;
+    while (SDL_PollEvent(&event))
     {
-        glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
+        ImGui_ImplSdl_ProcessEvent(&event);
+        if (event.type == SDL_QUIT)
+            g_done = true;
     }
-    // fragment shader
-    int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-    glCompileShader(fragmentShader);
-    // check for shader compile errors
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-    if (!success)
+    ImGui_ImplSdl_NewFrame(g_window);
+
+    // 1. Show a simple window
+    // Tip: if we don't call ImGui::Begin()/ImGui::End() the widgets appears in a window automatically called "Debug"
     {
-        glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
+        static float f = 0.0f;
+        ImGui::Text("Hello, world!");
+        ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
+        ImGui::ColorEdit3("clear color", (float*)&g_clear_color);
+        if (ImGui::Button("Test Window")) g_show_test_window ^= 1;
+        if (ImGui::Button("Another Window")) g_show_another_window ^= 1;
+        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
     }
-    // link shaders
-    shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-    // check for linking errors
-    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-    if (!success) {
-        glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
+
+    // 2. Show another simple window, this time using an explicit Begin/End pair
+    if (g_show_another_window)
+    {
+        ImGui::SetNextWindowSize(ImVec2(200,100), ImGuiSetCond_FirstUseEver);
+        ImGui::Begin("Another Window", &g_show_another_window);
+        ImGui::Text("Hello");
+        ImGui::End();
     }
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
 
+    // 3. Show the ImGui test window. Most of the sample code is in ImGui::ShowTestWindow()
+    if (g_show_test_window)
+    {
+        ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
+        ImGui::ShowDemoWindow(&g_show_test_window);
+    }
 
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
-    glBindVertexArray(VAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    // note that this is allowed, the call to glVertexAttribPointer registered VBO as the vertex attribute's bound vertex buffer object so afterwards we can safely unbind
-    glBindBuffer(GL_ARRAY_BUFFER, 0); 
-
-    // You can unbind the VAO afterwards so other VAO calls won't accidentally modify this VAO, but this rarely happens. Modifying other
-    // VAOs requires a call to glBindVertexArray anyways so we generally don't unbind VAOs (nor VBOs) when it's not directly necessary.
-    glBindVertexArray(0); 
-}
-
-void RenderTriangle(float time){
-    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+    // Rendering
+    glViewport(0, 0, (int)ImGui::GetIO().DisplaySize.x, (int)ImGui::GetIO().DisplaySize.y);
+    glClearColor(g_clear_color.x, g_clear_color.y, g_clear_color.z, g_clear_color.w);
     glClear(GL_COLOR_BUFFER_BIT);
-
-    vertices[0] = sin(time);
-    vertices[1] = cos(time);
-
-    vertices[3] = sin(time + 2.0f * M_PI / 3.0f);
-    vertices[4] = cos(time + 2.0f * M_PI / 3.0f);
-
-    vertices[7] = cos(time + 4.0f * M_PI / 3.0f);
-    vertices[6] = sin(time + 4.0f * M_PI / 3.0f);
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
-
-    // draw our first triangle
-    glUseProgram(shaderProgram);
-    glBindVertexArray(VAO); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
-    glDrawArrays(GL_TRIANGLES, 0, 3);
-}
-
-
-static Draw GDraw;
-
-EMSCRIPTEN_KEEPALIVE
-bool init()
-{
-    bool result = GDraw.init();
-    FunImGui::init();
-    initTriangle();
-    return result;
-}
-
-EMSCRIPTEN_KEEPALIVE
-void loop()
-{
-    FunImGui::BeginFrame();
-
-    static bool bShowTestWindow = true;
-    ImGui::ShowDemoWindow(&bShowTestWindow);
-    Draw::clear();
-    
-
-    ImGui::SetNextWindowPos(ImVec2(650,50), ImGuiCond_Once);
-    ImGui::SetNextWindowSize(ImVec2(200,200), ImGuiCond_Once);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, 0);
-    ImGui::Begin("WebGL content", nullptr, ImGuiWindowFlags_NoBringToFrontOnFocus);
-    ImGui::BeginChild("glWindow");
-    ImVec2 min = ImGui::GetWindowPos();
-    ImVec2 size = ImGui::GetWindowSize();
-    ImGui::EndChild();
-    ImGui::End();
-    ImGui::PopStyleColor();
-    ImGui::PopStyleVar();
-    ImGui::PopStyleVar();
-
-    // Test
-    ImGuiIO& io = ImGui::GetIO();
-    int fb_width = io.DisplaySize.x * io.DisplayFramebufferScale.x;
-    int fb_height = io.DisplaySize.y * io.DisplayFramebufferScale.y;
-    int x = (int)(min.x * io.DisplayFramebufferScale.x);
-    int y = (int)(min.y * io.DisplayFramebufferScale.y);
-    int w = (int)(size.x * io.DisplayFramebufferScale.x);
-    int h = (int)(size.y * io.DisplayFramebufferScale.y);
-    if(w>0 && h>0){
-        glEnable(GL_SCISSOR_TEST);
-        glScissor(x, fb_height-y-h, w, h);
-        glViewport(x, fb_height-y-h, w, h);
-        //glClearColor(1.f,0.1f,0.1f,1);
-        //glClear(GL_COLOR_BUFFER_BIT);
-        RenderTriangle(ImGui::GetTime());
-    }
-
     ImGui::Render();
+    SDL_GL_SwapWindow(g_window);
 }
 
-EMSCRIPTEN_KEEPALIVE
-int main()
+int main(int, char**)
 {
-    bool bInitialized = init();
-    if( bInitialized )
+    // Setup SDL
+    if (SDL_Init(SDL_INIT_VIDEO) != 0)
     {
-        emscripten_set_main_loop(loop, 0, 1);
+        printf("Error: %s\n", SDL_GetError());
+        return -1;
     }
+
+    // Setup window
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+    SDL_DisplayMode current;
+    SDL_GetCurrentDisplayMode(0, &current);
+    g_window = SDL_CreateWindow("ImGui SDL2+OpenGLES+Emscripten example", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720, SDL_WINDOW_OPENGL|SDL_WINDOW_RESIZABLE|SDL_WINDOW_ALLOW_HIGHDPI);
+    SDL_GLContext glcontext = SDL_GL_CreateContext(g_window);
+    
+    // Setup ImGui binding
+    ImGui_ImplSdl_Init(g_window);
+
+    // Load Fonts
+    // (see extra_fonts/README.txt for more details)
+    //ImGuiIO& io = ImGui::GetIO();
+    //io.Fonts->AddFontDefault();
+    //io.Fonts->AddFontFromFileTTF("../../extra_fonts/Cousine-Regular.ttf", 15.0f);
+    //io.Fonts->AddFontFromFileTTF("../../extra_fonts/DroidSans.ttf", 16.0f);
+    //io.Fonts->AddFontFromFileTTF("../../extra_fonts/ProggyClean.ttf", 13.0f);
+    //io.Fonts->AddFontFromFileTTF("../../extra_fonts/ProggyTiny.ttf", 10.0f);
+    //io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
+
+    // Merge glyphs from multiple fonts into one (e.g. combine default font with another with Chinese glyphs, or add icons)
+    //ImWchar icons_ranges[] = { 0xf000, 0xf3ff, 0 };
+    //ImFontConfig icons_config; icons_config.MergeMode = true; icons_config.PixelSnapH = true;
+    //io.Fonts->AddFontFromFileTTF("../../extra_fonts/DroidSans.ttf", 18.0f);
+    //io.Fonts->AddFontFromFileTTF("../../extra_fonts/fontawesome-webfont.ttf", 18.0f, &icons_config, icons_ranges);
+
+    // Main loop
+#ifdef __EMSCRIPTEN__
+    emscripten_set_main_loop(main_loop, 0, 1);
+#else
+    while (!g_done)
+    {
+        main_loop();
+    }
+#endif
+    
+    // Cleanup
+    ImGui_ImplSdl_Shutdown();
+    SDL_GL_DeleteContext(glcontext);
+    SDL_DestroyWindow(g_window);
+    SDL_Quit();
+
+    return 0;
 }
