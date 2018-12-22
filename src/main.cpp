@@ -2,13 +2,36 @@
 
 #include <imgui.h>
 #include "imgui_impl_sdl.h"
-#include <stdio.h>
+
 #include <SDL.h>
-#include <SDL_opengl.h>
+#include <SDL_syswm.h>
+#ifdef __APPLE__
+#include <OpenGL/gl.h>
+#include <OpenGL/glext.h>
+#define glGenVertexArrays glGenVertexArraysAPPLE
+#define glBindVertexArrays glBindVertexArraysAPPLE
+#define glGenVertexArray glGenVertexArrayAPPLE
+#define glBindVertexArray glBindVertexArrayAPPLE
+#else
+#include <SDL_opengles2.h>
+#endif
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#include <GLES3/gl3.h>
 #endif
+
+#include <math.h>
+#include <iostream>
+
+int shaderProgram;
+int attribLocationPosition;
+unsigned int VBO, VAO;
+float vertices[] = {
+    -0.5f, -0.5f, 0.0f, // left
+    0.5f, -0.5f, 0.0f, // right
+    0.0f,  0.5f, 0.0f  // top
+};
 
 bool g_done = false;
 SDL_Window* g_window;
@@ -16,6 +39,112 @@ bool g_show_test_window = true;
 bool g_show_another_window = false;
 ImVec4 g_clear_color = ImColor(114, 144, 154);
 
+void initTriangle()
+{
+    
+    const char *vertexShaderSource = ""
+    "attribute vec3 aPos;\n"
+    "void main()\n"
+    "{\n"
+    "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
+    "}\0";
+    const char *fragmentShaderSource = "\n"
+    "void main()\n"
+    "{\n"
+    "   gl_FragColor = vec4(1.0, 0.5, 0.2, 1.0);\n"
+    "}\n\0";
+    
+    // build and compile our shader program
+    // ------------------------------------
+    // vertex shader
+    int vertexShader = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
+    glCompileShader(vertexShader);
+    // check for shader compile errors
+    int success;
+    char infoLog[512];
+    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
+        std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
+    }
+    // fragment shader
+    int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+    glCompileShader(fragmentShader);
+    // check for shader compile errors
+    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
+        std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
+    }
+    // link shaders
+    shaderProgram = glCreateProgram();
+    glAttachShader(shaderProgram, vertexShader);
+    glAttachShader(shaderProgram, fragmentShader);
+    glLinkProgram(shaderProgram);
+    attribLocationPosition = glGetAttribLocation(shaderProgram, "aPos");
+    
+    // check for linking errors
+    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
+    if (!success) {
+        glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
+        std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
+    }
+    
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+    
+    
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
+    glBindVertexArray(VAO);
+    
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+    
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    
+    // note that this is allowed, the call to glVertexAttribPointer registered VBO as the vertex attribute's bound vertex buffer object so afterwards we can safely unbind
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    
+    // You can unbind the VAO afterwards so other VAO calls won't accidentally modify this VAO, but this rarely happens. Modifying other
+    // VAOs requires a call to glBindVertexArray anyways so we generally don't unbind VAOs (nor VBOs) when it's not directly necessary.
+    glBindVertexArray(0);
+}
+
+void RenderTriangle(int x, int y, int width, int height, float time)
+{
+    glViewport(x, y, width, height);
+    glClearColor(g_clear_color.x, g_clear_color.y, g_clear_color.z, g_clear_color.w);
+    glClear(GL_COLOR_BUFFER_BIT);
+    
+    vertices[0] = sin(time);
+    vertices[1] = cos(time);
+    
+    vertices[3] = sin(time + 2.0f * M_PI / 3.0f);
+    vertices[4] = cos(time + 2.0f * M_PI / 3.0f);
+    
+    vertices[7] = cos(time + 4.0f * M_PI / 3.0f);
+    vertices[6] = sin(time + 4.0f * M_PI / 3.0f);
+    
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glEnableVertexAttribArray(attribLocationPosition);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+
+    glUseProgram(shaderProgram);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+    
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
 
 void main_loop()
 {
@@ -26,6 +155,7 @@ void main_loop()
         if (event.type == SDL_QUIT)
             g_done = true;
     }
+    
     ImGui_ImplSdl_NewFrame(g_window);
 
     // 1. Show a simple window
@@ -48,19 +178,22 @@ void main_loop()
         ImGui::Text("Hello");
         ImGui::End();
     }
-
+    
     // 3. Show the ImGui test window. Most of the sample code is in ImGui::ShowTestWindow()
     if (g_show_test_window)
     {
         ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
         ImGui::ShowDemoWindow(&g_show_test_window);
     }
-
-    // Rendering
-    glViewport(0, 0, (int)ImGui::GetIO().DisplaySize.x, (int)ImGui::GetIO().DisplaySize.y);
-    glClearColor(g_clear_color.x, g_clear_color.y, g_clear_color.z, g_clear_color.w);
-    glClear(GL_COLOR_BUFFER_BIT);
+    
+    auto& io = ImGui::GetIO();
+    int w = (int)io.DisplaySize.x * io.DisplayFramebufferScale.x;
+    int h = (int)io.DisplaySize.y * io.DisplayFramebufferScale.y;
+    RenderTriangle(0, 0, w, h, SDL_GetTicks() / 1000.0f);
+    
+    glViewport(0, 0, w, h);
     ImGui::Render();
+    
     SDL_GL_SwapWindow(g_window);
 }
 
@@ -86,7 +219,7 @@ int main(int, char**)
     
     // Setup ImGui binding
     ImGui_ImplSdl_Init(g_window);
-
+    
     // Load Fonts
     // (see extra_fonts/README.txt for more details)
     //ImGuiIO& io = ImGui::GetIO();
@@ -103,6 +236,8 @@ int main(int, char**)
     //io.Fonts->AddFontFromFileTTF("../../extra_fonts/DroidSans.ttf", 18.0f);
     //io.Fonts->AddFontFromFileTTF("../../extra_fonts/fontawesome-webfont.ttf", 18.0f, &icons_config, icons_ranges);
 
+    initTriangle();
+    
     // Main loop
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(main_loop, 0, 1);
