@@ -34,7 +34,6 @@ float vertices[] = {
 bool g_done = false;
 SDL_Window* g_window;
 bool g_show_test_window = true;
-bool g_show_another_window = false;
 ImVec4 g_clear_color = ImColor(114, 144, 154);
 
 void initTriangle()
@@ -157,38 +156,17 @@ void main_loop()
     }
     
     ImGui_ImplSdl_NewFrame(g_window);
-
-    // 1. Show a simple window
-    // Tip: if we don't call ImGui::Begin()/ImGui::End() the widgets appears in a window automatically called "Debug"
+    
+    if(ImGui::Begin("Demo"))
     {
-        static float f = 0.0f;
-        ImGui::Text("Hello, world!");
-        ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
-        ImGui::ColorEdit3("clear color", (float*)&g_clear_color);
-        if (ImGui::Button("Test Window")) g_show_test_window ^= 1;
-        if (ImGui::Button("Another Window")) g_show_another_window ^= 1;
-        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-    }
-
-    // 2. Show another simple window, this time using an explicit Begin/End pair
-    if (g_show_another_window)
-    {
-        ImGui::SetNextWindowSize(ImVec2(200,100), ImGuiSetCond_FirstUseEver);
-        ImGui::Begin("Another Window", &g_show_another_window);
-        ImGui::Text("Hello");
+        ImGui::Text("Just a WebAssembly demo.");
         ImGui::End();
     }
     
-    // 3. Show the ImGui test window. Most of the sample code is in ImGui::ShowTestWindow()
-    if (g_show_test_window)
-    {
-        ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
-        ImGui::ShowDemoWindow(&g_show_test_window);
-    }
+    //ImGui::ShowDemoWindow(&g_show_test_window);
     
-    auto& io = ImGui::GetIO();
-    int w = (int)io.DisplaySize.x * io.DisplayFramebufferScale.x;
-    int h = (int)io.DisplaySize.y * io.DisplayFramebufferScale.y;
+    int w, h;
+    SDL_GL_GetDrawableSize(g_window, &w, &h);
     RenderTriangle(0, 0, w, h, SDL_GetTicks() / 1000.0f);
     
     glViewport(0, 0, w, h);
