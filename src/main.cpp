@@ -157,12 +157,10 @@ void main_loop()
     
     ImGui_ImplSdl_NewFrame(g_window);
     
-    if(ImGui::Begin("Demo"))
-    {
-        ImGui::Text("Just a WebAssembly demo.");
-        ImGui::End();
-    }
-    
+    ImGui::Begin("Demo");
+    ImGui::Text("Just a WebAssembly demo.");
+    ImGui::End();
+
     //ImGui::ShowDemoWindow(&g_show_test_window);
     
     int w, h;
