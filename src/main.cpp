@@ -20,6 +20,7 @@
 
 #include <math.h>
 #include <iostream>
+#include <glm/glm.hpp>
 
 int shaderProgram;
 int attribLocationPosition;
