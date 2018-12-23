@@ -1,10 +1,7 @@
-// ImGui - standalone example application for SDL2 + OpenGL ES 2 + Emscripten
-
 #include <imgui.h>
 #include "imgui_impl_sdl.h"
 
 #include <SDL.h>
-#include <SDL_syswm.h>
 #ifdef __APPLE__
 #include <OpenGL/gl.h>
 #include <OpenGL/glext.h>
@@ -41,18 +38,20 @@ ImVec4 g_clear_color = ImColor(114, 144, 154);
 
 void initTriangle()
 {
+    const char *vertexShaderSource = R"xxx(
+        attribute vec3 aPos;
+        void main()
+        {
+           gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
+        }
+    )xxx";
     
-    const char *vertexShaderSource = ""
-    "attribute vec3 aPos;\n"
-    "void main()\n"
-    "{\n"
-    "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-    "}\0";
-    const char *fragmentShaderSource = "\n"
-    "void main()\n"
-    "{\n"
-    "   gl_FragColor = vec4(1.0, 0.5, 0.2, 1.0);\n"
-    "}\n\0";
+    const char *fragmentShaderSource = R"xxx(
+        void main()
+        {
+           gl_FragColor = vec4(1.0, 0.5, 0.2, 1.0);
+        }
+    )xxx";
     
     // build and compile our shader program
     // ------------------------------------
@@ -199,7 +198,6 @@ void main_loop()
 
 int main(int, char**)
 {
-    // Setup SDL
     if (SDL_Init(SDL_INIT_VIDEO) != 0)
     {
         printf("Error: %s\n", SDL_GetError());
@@ -217,25 +215,8 @@ int main(int, char**)
     g_window = SDL_CreateWindow("ImGui SDL2+OpenGLES+Emscripten example", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720, SDL_WINDOW_OPENGL|SDL_WINDOW_RESIZABLE|SDL_WINDOW_ALLOW_HIGHDPI);
     SDL_GLContext glcontext = SDL_GL_CreateContext(g_window);
     
-    // Setup ImGui binding
     ImGui_ImplSdl_Init(g_window);
     
-    // Load Fonts
-    // (see extra_fonts/README.txt for more details)
-    //ImGuiIO& io = ImGui::GetIO();
-    //io.Fonts->AddFontDefault();
-    //io.Fonts->AddFontFromFileTTF("../../extra_fonts/Cousine-Regular.ttf", 15.0f);
-    //io.Fonts->AddFontFromFileTTF("../../extra_fonts/DroidSans.ttf", 16.0f);
-    //io.Fonts->AddFontFromFileTTF("../../extra_fonts/ProggyClean.ttf", 13.0f);
-    //io.Fonts->AddFontFromFileTTF("../../extra_fonts/ProggyTiny.ttf", 10.0f);
-    //io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
-
-    // Merge glyphs from multiple fonts into one (e.g. combine default font with another with Chinese glyphs, or add icons)
-    //ImWchar icons_ranges[] = { 0xf000, 0xf3ff, 0 };
-    //ImFontConfig icons_config; icons_config.MergeMode = true; icons_config.PixelSnapH = true;
-    //io.Fonts->AddFontFromFileTTF("../../extra_fonts/DroidSans.ttf", 18.0f);
-    //io.Fonts->AddFontFromFileTTF("../../extra_fonts/fontawesome-webfont.ttf", 18.0f, &icons_config, icons_ranges);
-
     initTriangle();
     
     // Main loop
