@@ -20,6 +20,9 @@ add_executable(index
     src/main.cpp
 )
 
+source_group(external REGULAR_EXPRESSION external)
+source_group(src REGULAR_EXPRESSION src)
+
 set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY "libc++")
 set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LANGUAGE_STANDARD "c++17")
 
