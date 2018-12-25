@@ -24,16 +24,15 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-uint32_t shaderProgram;
-int32_t attribLocationPosition;
+uint32_t g_shaderProgram;
+int32_t g_attribLocationPosition;
 int32_t g_colorUniformLocation;
-uint32_t VBO, VAO;
-std::array<float,9> vertices = {
+uint32_t g_vbo, g_vao;
+std::array<float,9> g_vertices = {
     -0.5f, -0.5f, 0.0f, // left
     0.5f, -0.5f, 0.0f, // right
     0.0f,  0.5f, 0.0f  // top
 };
-
 bool g_done = false;
 SDL_Window* g_window;
 SDL_GLContext g_glcontext;
@@ -101,17 +100,17 @@ bool initTriangle()
         return false;
     }
     // link shaders
-    shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-    attribLocationPosition = glGetAttribLocation(shaderProgram, "aPos");
+    g_shaderProgram = glCreateProgram();
+    glAttachShader(g_shaderProgram, vertexShader);
+    glAttachShader(g_shaderProgram, fragmentShader);
+    glLinkProgram(g_shaderProgram);
+    g_attribLocationPosition = glGetAttribLocation(g_shaderProgram, "aPos");
     
     // check for linking errors
-    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
+    glGetProgramiv(g_shaderProgram, GL_LINK_STATUS, &success);
     if (!success) {
         char infoLog[512];
-        glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
+        glGetProgramInfoLog(g_shaderProgram, 512, NULL, infoLog);
         std::cerr << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
         return false;
     }
@@ -119,18 +118,18 @@ bool initTriangle()
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
     
-    g_colorUniformLocation = glGetUniformLocation(shaderProgram, "color");
+    g_colorUniformLocation = glGetUniformLocation(g_shaderProgram, "color");
     if (g_colorUniformLocation == -1){
         return false;
     }
     
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
+    glGenVertexArrays(1, &g_vao);
+    glGenBuffers(1, &g_vbo);
     // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
-    glBindVertexArray(VAO);
+    glBindVertexArray(g_vao);
     
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertices.size(), vertices.data(), GL_DYNAMIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, g_vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * g_vertices.size(), g_vertices.data(), GL_DYNAMIC_DRAW);
     
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
@@ -151,24 +150,24 @@ void RenderTriangle(int x, int y, int width, int height, float time, glm::vec3 c
     glClearColor(bgcolor.x, bgcolor.y, bgcolor.z, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     
-    vertices[0] = sin(time);
-    vertices[1] = cos(time);
+    g_vertices[0] = sin(time);
+    g_vertices[1] = cos(time);
     
-    vertices[3] = sin(time + 2.0f * M_PI / 3.0f);
-    vertices[4] = cos(time + 2.0f * M_PI / 3.0f);
+    g_vertices[3] = sin(time + 2.0f * M_PI / 3.0f);
+    g_vertices[4] = cos(time + 2.0f * M_PI / 3.0f);
     
-    vertices[7] = cos(time + 4.0f * M_PI / 3.0f);
-    vertices[6] = sin(time + 4.0f * M_PI / 3.0f);
+    g_vertices[7] = cos(time + 4.0f * M_PI / 3.0f);
+    g_vertices[6] = sin(time + 4.0f * M_PI / 3.0f);
     
     
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glEnableVertexAttribArray(attribLocationPosition);
+    glBindVertexArray(g_vao);
+    glBindBuffer(GL_ARRAY_BUFFER, g_vbo);
+    glEnableVertexAttribArray(g_attribLocationPosition);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertices.size(), vertices.data(), GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * g_vertices.size(), g_vertices.data(), GL_DYNAMIC_DRAW);
 
-    glUseProgram(shaderProgram);
+    glUseProgram(g_shaderProgram);
     glUniform4f(g_colorUniformLocation, color.x, color.y, color.z, 1.0f);
     glDrawArrays(GL_TRIANGLES, 0, 3);
     
