@@ -42,6 +42,7 @@ bool g_show_test_window = true;
 bool initTriangle()
 {
     const char *vertexShaderSource = R"xxx(
+        precision mediump float;
         attribute vec3 aPos;
         void main()
         {
@@ -50,6 +51,7 @@ bool initTriangle()
     )xxx";
     
     const char *fragmentShaderSource = R"xxx(
+        precision mediump float;
         uniform vec4 color;
         void main()
         {
@@ -175,6 +177,13 @@ void main_loop()
     
     ImGui::Begin("Demo");
     ImGui::Text("Just a WebAssembly demo.");
+#ifdef __EMSCRIPTEN__
+    ImGui::SameLine();
+    if(ImGui::Button("View on Github"))
+    {
+        emscripten_run_script("window.location.href = 'https://github.com/schteppe/imgui-wasm';");
+    }
+#endif
     static glm::vec3 color = glm::vec3(0.7f, 0.3f, 0.2f);
     static glm::vec3 bgcolor = glm::vec3(0.2f);
     ImGui::ColorEdit3("Triangle Color", glm::value_ptr(color));
