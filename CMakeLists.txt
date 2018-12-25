@@ -16,9 +16,11 @@ include_directories(src)
 include_directories(SYSTEM external ${SDL2_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIRS})
 
 add_executable(index
+    external/imgui.h
     external/imgui.cpp
     external/imgui_demo.cpp
     external/imgui_draw.cpp
+    src/imgui_impl_sdl.h
     src/imgui_impl_sdl.cpp
     src/main.cpp
 )
