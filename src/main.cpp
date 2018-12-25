@@ -42,7 +42,6 @@ bool g_show_test_window = true;
 bool initTriangle()
 {
     const char *vertexShaderSource = R"xxx(
-        precision mediump float;
         attribute vec3 aPos;
         void main()
         {
@@ -51,7 +50,6 @@ bool initTriangle()
     )xxx";
     
     const char *fragmentShaderSource = R"xxx(
-        precision mediump float;
         uniform vec4 color;
         void main()
         {
@@ -63,7 +61,14 @@ bool initTriangle()
     // ------------------------------------
     // vertex shader
     int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
+    {
+        std::string shaderSource = vertexShaderSource;
+    #ifdef __EMSCRIPTEN__
+        shaderSource = "precision mediump float;\n" + shaderSource; // required in webgl
+    #endif
+        const char* tmp = shaderSource.c_str();
+        glShaderSource(vertexShader, 1, &tmp, NULL);
+    }
     glCompileShader(vertexShader);
     // check for shader compile errors
     int success;
@@ -78,7 +83,14 @@ bool initTriangle()
     
     // fragment shader
     int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+    {
+        std::string shaderSource = fragmentShaderSource;
+#ifdef __EMSCRIPTEN__
+        shaderSource = "precision mediump float;\n" + shaderSource; // required in webgl
+#endif
+        const char* tmp = shaderSource.c_str();
+        glShaderSource(fragmentShader, 1, &tmp, NULL);
+    }
     glCompileShader(fragmentShader);
     // check for shader compile errors
     glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
@@ -147,7 +159,6 @@ void RenderTriangle(int x, int y, int width, int height, float time, glm::vec3 c
     vertices[7] = cos(time + 4.0f * M_PI / 3.0f);
     vertices[6] = sin(time + 4.0f * M_PI / 3.0f);
     
-    glUniform4f(g_colorUniformLocation, color.x, color.y, color.z, 1.0f);
     
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
@@ -157,6 +168,7 @@ void RenderTriangle(int x, int y, int width, int height, float time, glm::vec3 c
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
 
     glUseProgram(shaderProgram);
+    glUniform4f(g_colorUniformLocation, color.x, color.y, color.z, 1.0f);
     glDrawArrays(GL_TRIANGLES, 0, 3);
     
     glBindVertexArray(0);
