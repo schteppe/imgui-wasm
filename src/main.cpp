@@ -20,10 +20,13 @@
 
 #include <math.h>
 #include <iostream>
+#include <array>
 #include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 int shaderProgram;
 int attribLocationPosition;
+int32_t g_colorUniformLocation;
 unsigned int VBO, VAO;
 float vertices[] = {
     -0.5f, -0.5f, 0.0f, // left
@@ -33,10 +36,10 @@ float vertices[] = {
 
 bool g_done = false;
 SDL_Window* g_window;
+SDL_GLContext g_glcontext;
 bool g_show_test_window = true;
-ImVec4 g_clear_color = ImColor(114, 144, 154);
 
-void initTriangle()
+bool initTriangle()
 {
     const char *vertexShaderSource = R"xxx(
         attribute vec3 aPos;
@@ -47,9 +50,10 @@ void initTriangle()
     )xxx";
     
     const char *fragmentShaderSource = R"xxx(
+        uniform vec4 color;
         void main()
         {
-           gl_FragColor = vec4(1.0, 0.5, 0.2, 1.0);
+           gl_FragColor = color;
         }
     )xxx";
     
@@ -67,7 +71,9 @@ void initTriangle()
     {
         glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
         std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
+        return false;
     }
+    
     // fragment shader
     int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
@@ -78,6 +84,7 @@ void initTriangle()
     {
         glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
         std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
+        return false;
     }
     // link shaders
     shaderProgram = glCreateProgram();
@@ -91,11 +98,16 @@ void initTriangle()
     if (!success) {
         glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
         std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
+        return false;
     }
     
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
     
+    g_colorUniformLocation = glGetUniformLocation(shaderProgram, "color");
+    if (g_colorUniformLocation == -1){
+        return false;
+    }
     
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
@@ -114,12 +126,14 @@ void initTriangle()
     // You can unbind the VAO afterwards so other VAO calls won't accidentally modify this VAO, but this rarely happens. Modifying other
     // VAOs requires a call to glBindVertexArray anyways so we generally don't unbind VAOs (nor VBOs) when it's not directly necessary.
     glBindVertexArray(0);
+    
+    return true;
 }
 
-void RenderTriangle(int x, int y, int width, int height, float time)
+void RenderTriangle(int x, int y, int width, int height, float time, glm::vec3 color, glm::vec3 bgcolor)
 {
     glViewport(x, y, width, height);
-    glClearColor(g_clear_color.x, g_clear_color.y, g_clear_color.z, g_clear_color.w);
+    glClearColor(bgcolor.x, bgcolor.y, bgcolor.z, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     
     vertices[0] = sin(time);
@@ -130,6 +144,8 @@ void RenderTriangle(int x, int y, int width, int height, float time)
     
     vertices[7] = cos(time + 4.0f * M_PI / 3.0f);
     vertices[6] = sin(time + 4.0f * M_PI / 3.0f);
+    
+    glUniform4f(g_colorUniformLocation, color.x, color.y, color.z, 1.0f);
     
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
@@ -159,13 +175,17 @@ void main_loop()
     
     ImGui::Begin("Demo");
     ImGui::Text("Just a WebAssembly demo.");
+    static glm::vec3 color = glm::vec3(0.7f, 0.3f, 0.2f);
+    static glm::vec3 bgcolor = glm::vec3(0.2f);
+    ImGui::ColorEdit3("Triangle Color", glm::value_ptr(color));
+    ImGui::ColorEdit3("Background Color", glm::value_ptr(bgcolor));
     ImGui::End();
 
     //ImGui::ShowDemoWindow(&g_show_test_window);
     
     int w, h;
     SDL_GL_GetDrawableSize(g_window, &w, &h);
-    RenderTriangle(0, 0, w, h, SDL_GetTicks() / 1000.0f);
+    RenderTriangle(0, 0, w, h, SDL_GetTicks() / 1000.0f, color, bgcolor);
     
     glViewport(0, 0, w, h);
     ImGui::Render();
@@ -173,14 +193,14 @@ void main_loop()
     SDL_GL_SwapWindow(g_window);
 }
 
-int main(int, char**)
+bool initSDL()
 {
     if (SDL_Init(SDL_INIT_VIDEO) != 0)
     {
         printf("Error: %s\n", SDL_GetError());
-        return -1;
+        return false;
     }
-
+    
     // Setup window
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
@@ -190,13 +210,23 @@ int main(int, char**)
     SDL_DisplayMode current;
     SDL_GetCurrentDisplayMode(0, &current);
     g_window = SDL_CreateWindow("ImGui SDL2+OpenGLES+Emscripten example", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720, SDL_WINDOW_OPENGL|SDL_WINDOW_RESIZABLE|SDL_WINDOW_ALLOW_HIGHDPI);
-    SDL_GLContext glcontext = SDL_GL_CreateContext(g_window);
+    g_glcontext = SDL_GL_CreateContext(g_window);
     
     ImGui_ImplSdl_Init(g_window);
     
-    initTriangle();
-    
-    // Main loop
+    return true;
+}
+
+void destroySDL()
+{
+    ImGui_ImplSdl_Shutdown();
+    SDL_GL_DeleteContext(g_glcontext);
+    SDL_DestroyWindow(g_window);
+    SDL_Quit();
+}
+
+void runMainLoop()
+{
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(main_loop, 0, 1);
 #else
@@ -205,12 +235,24 @@ int main(int, char**)
         main_loop();
     }
 #endif
-    
-    // Cleanup
-    ImGui_ImplSdl_Shutdown();
-    SDL_GL_DeleteContext(glcontext);
-    SDL_DestroyWindow(g_window);
-    SDL_Quit();
+}
 
-    return 0;
+int main(int, char**)
+{
+    if(!initSDL())
+    {
+        return EXIT_FAILURE;
+    }
+    
+    if(!initTriangle())
+    {
+        destroySDL();
+        return EXIT_FAILURE;
+    }
+
+    runMainLoop();
+        
+    destroySDL();
+
+    return EXIT_SUCCESS;
 }
