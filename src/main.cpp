@@ -24,11 +24,11 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-int shaderProgram;
-int attribLocationPosition;
+uint32_t shaderProgram;
+int32_t attribLocationPosition;
 int32_t g_colorUniformLocation;
-unsigned int VBO, VAO;
-float vertices[] = {
+uint32_t VBO, VAO;
+std::array<float,9> vertices = {
     -0.5f, -0.5f, 0.0f, // left
     0.5f, -0.5f, 0.0f, // right
     0.0f,  0.5f, 0.0f  // top
@@ -37,7 +37,6 @@ float vertices[] = {
 bool g_done = false;
 SDL_Window* g_window;
 SDL_GLContext g_glcontext;
-bool g_show_test_window = true;
 
 bool initTriangle()
 {
@@ -72,10 +71,10 @@ bool initTriangle()
     glCompileShader(vertexShader);
     // check for shader compile errors
     int success;
-    char infoLog[512];
     glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
     if (!success)
     {
+        char infoLog[512];
         glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
         std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
         return false;
@@ -96,6 +95,7 @@ bool initTriangle()
     glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
     if (!success)
     {
+        char infoLog[512];
         glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
         std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
         return false;
@@ -110,8 +110,9 @@ bool initTriangle()
     // check for linking errors
     glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
     if (!success) {
+        char infoLog[512];
         glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
+        std::cerr << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
         return false;
     }
     
@@ -129,7 +130,7 @@ bool initTriangle()
     glBindVertexArray(VAO);
     
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertices.size(), vertices.data(), GL_DYNAMIC_DRAW);
     
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
@@ -165,7 +166,7 @@ void RenderTriangle(int x, int y, int width, int height, float time, glm::vec3 c
     glEnableVertexAttribArray(attribLocationPosition);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertices.size(), vertices.data(), GL_DYNAMIC_DRAW);
 
     glUseProgram(shaderProgram);
     glUniform4f(g_colorUniformLocation, color.x, color.y, color.z, 1.0f);
@@ -202,6 +203,7 @@ void main_loop()
     ImGui::ColorEdit3("Background Color", glm::value_ptr(bgcolor));
     ImGui::End();
 
+    //static bool g_show_test_window = true;
     //ImGui::ShowDemoWindow(&g_show_test_window);
     
     int w, h;
@@ -218,7 +220,7 @@ bool initSDL()
 {
     if (SDL_Init(SDL_INIT_VIDEO) != 0)
     {
-        printf("Error: %s\n", SDL_GetError());
+        std::cerr << "Error: %s\n" << SDL_GetError() << '\n';
         return false;
     }
     
@@ -230,7 +232,13 @@ bool initSDL()
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
     SDL_DisplayMode current;
     SDL_GetCurrentDisplayMode(0, &current);
-    g_window = SDL_CreateWindow("ImGui SDL2+OpenGLES+Emscripten example", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720, SDL_WINDOW_OPENGL|SDL_WINDOW_RESIZABLE|SDL_WINDOW_ALLOW_HIGHDPI);
+    g_window = SDL_CreateWindow(
+        "ImGUI / WASM / WebGL demo", // title
+        SDL_WINDOWPOS_CENTERED, // x
+        SDL_WINDOWPOS_CENTERED, // y
+        1280, 720, // width, height
+        SDL_WINDOW_OPENGL|SDL_WINDOW_RESIZABLE|SDL_WINDOW_ALLOW_HIGHDPI // flags
+    );
     g_glcontext = SDL_GL_CreateContext(g_window);
     
     ImGui_ImplSdl_Init(g_window);
