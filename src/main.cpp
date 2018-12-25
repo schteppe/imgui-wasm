@@ -187,7 +187,8 @@ void main_loop()
     
     ImGui_ImplSdl_NewFrame(g_window);
     
-    ImGui::Begin("Demo");
+    ImGui::SetNextWindowPos(ImVec2(10,10));
+    ImGui::Begin("Demo", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Text("Just a WebAssembly demo.");
 #ifdef __EMSCRIPTEN__
     ImGui::SameLine();
@@ -196,10 +197,10 @@ void main_loop()
         emscripten_run_script("window.location.href = 'https://github.com/schteppe/imgui-wasm';");
     }
 #endif
-    static glm::vec3 color = glm::vec3(0.7f, 0.3f, 0.2f);
-    static glm::vec3 bgcolor = glm::vec3(0.2f);
-    ImGui::ColorEdit3("Triangle Color", glm::value_ptr(color));
-    ImGui::ColorEdit3("Background Color", glm::value_ptr(bgcolor));
+    static glm::vec3 color(0.7f, 0.3f, 0.2f);
+    static glm::vec3 bgcolor(0.2f);
+    ImGui::ColorEdit3("Triangle", glm::value_ptr(color));
+    ImGui::ColorEdit3("Background", glm::value_ptr(bgcolor));
     ImGui::End();
 
     //static bool g_show_test_window = true;
